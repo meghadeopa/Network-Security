@@ -1,2 +1,35 @@
-venv
+# Virtual environment
+venv/
+env/
+.venv/
+
+# Environment variables
 .env
+*.env
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Artifacts — too large for GitHub
+Artifacts/
+logs/
+
+# Model files — large binary files
+final_model/
+*.pkl
+*.npy
+
+# Data files — large
+Network_Data/
+*.csv
+
+# IDE
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
