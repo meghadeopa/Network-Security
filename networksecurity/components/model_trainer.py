@@ -50,7 +50,7 @@ class ModelTrainer:
                 mlflow.log_metric("precision", classificationmetric.precision_score)
                 mlflow.log_metric("recall_score", classificationmetric.recall_score)
 
-                mlflow.sklearn.log_model(best_model, "model")
+                mlflow.sklearn.log_model(best_model, name = "model")
 
         except Exception as e:
             raise NetworkSecurityException(e, sys)

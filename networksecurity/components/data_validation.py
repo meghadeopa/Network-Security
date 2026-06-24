@@ -37,10 +37,23 @@ class DataValidation:
         except Exception as e:
             raise NetworkSecurityException(e,sys)
         
-    def detect_dataset_drift(self,base_df,current_df,threshold=0.05)->bool:
+    def detect_dataset_drift(self,base_df,current_df,threshold=0.05,drift_tolerance=0.30)->bool:
+        """
+        Runs a KS-test per column to compare base vs current distributions.
+
+        threshold: per-column p-value cutoff. p < threshold => that column has drifted.
+        drift_tolerance: max fraction of columns allowed to drift before the whole
+                         dataset is considered drifted. On a random train/test split a
+                         few columns drift by chance, so we don't fail on any single one.
+
+        Returns True if the dataset is OK (drift fraction within tolerance),
+        False if too many columns drifted.
+        """
         try:
-            status=True
             report={}
+            n_drifted=0
+            n_columns=len(base_df.columns)
+
             for column in base_df.columns:
                 d1=base_df[column]
                 d2=current_df[column]
@@ -49,18 +62,38 @@ class DataValidation:
                     is_found=False
                 else:
                     is_found=True
-                    status=False
+                    n_drifted+=1
                 report.update({column:{
                     "p_value":float(is_same_dist.pvalue),
                     "drift_status":is_found
-                    
                     }})
+
+            drift_fraction = n_drifted / n_columns if n_columns else 0.0
+            # dataset "passes" only if the share of drifted columns is within tolerance
+            status = drift_fraction <= drift_tolerance
+
+            report.update({"summary":{
+                "n_columns":n_columns,
+                "n_drifted":n_drifted,
+                "drift_fraction":float(drift_fraction),
+                "drift_tolerance":float(drift_tolerance),
+                "dataset_drift_status":not status   # True means dataset-level drift detected
+            }})
+
+            logging.info(
+                f"Drift check: {n_drifted}/{n_columns} columns drifted "
+                f"(fraction={drift_fraction:.2f}, tolerance={drift_tolerance}) -> "
+                f"{'PASS' if status else 'FAIL'}"
+            )
+
             drift_report_file_path = self.data_validation_config.drift_report_file_path
 
             #Create directory
             dir_path = os.path.dirname(drift_report_file_path)
             os.makedirs(dir_path,exist_ok=True)
             write_yaml_file(file_path=drift_report_file_path,content=report)
+
+            return status
 
         except Exception as e:
             raise NetworkSecurityException(e,sys)
@@ -77,15 +110,18 @@ class DataValidation:
             
             ## validate number of columns
 
-            status=self.validate_number_of_columns(dataframe=train_dataframe)
-            if not status:
+            train_columns_status=self.validate_number_of_columns(dataframe=train_dataframe)
+            if not train_columns_status:
                 error_message=f"Train dataframe does not contain all columns.\n"
-            status = self.validate_number_of_columns(dataframe=test_dataframe)
-            if not status:
-                error_message=f"Test dataframe does not contain all columns.\n"   
+            test_columns_status = self.validate_number_of_columns(dataframe=test_dataframe)
+            if not test_columns_status:
+                error_message=f"Test dataframe does not contain all columns.\n"
 
             ## lets check datadrift
-            status=self.detect_dataset_drift(base_df=train_dataframe,current_df=test_dataframe)
+            drift_status=self.detect_dataset_drift(base_df=train_dataframe,current_df=test_dataframe)
+
+            ## overall validation passes only if columns AND no drift are OK
+            status = train_columns_status and test_columns_status and drift_status
             dir_path=os.path.dirname(self.data_validation_config.valid_train_file_path)
             os.makedirs(dir_path,exist_ok=True)
 
@@ -109,6 +145,3 @@ class DataValidation:
             return data_validation_artifact
         except Exception as e:
             raise NetworkSecurityException(e,sys)
-
-
-
