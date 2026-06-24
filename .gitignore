@@ -32,4 +32,6 @@ Network_Data/
 
 # OS files
 .DS_Store
-Thumbs.db
+Thumbs.dbfinal_model/ 
+prediction_output/ 
+Artifacts/ 
