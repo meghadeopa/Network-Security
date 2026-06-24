@@ -1,8 +1,8 @@
 Metadata-Version: 2.4
 Name: NetworkSecurity
 Version: 0.0.1
-Author: Krish Naik
-Author-email: krishnaik06@gmail.com
+Author: Megha Deopa
+Author-email: megha.deopa13@gmail.com
 Requires-Dist: python-dotenv
 Requires-Dist: pandas
 Requires-Dist: numpy
@@ -20,4 +20,3 @@ Requires-Dist: python-multipart
 Dynamic: author
 Dynamic: author-email
 Dynamic: requires-dist
-"# " 
