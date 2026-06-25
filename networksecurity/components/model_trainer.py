@@ -45,12 +45,9 @@ class ModelTrainer:
         try:
             with mlflow.start_run(run_name=run_label):
                 mlflow.log_param("model_name", type(best_model).__name__)
-
                 mlflow.log_metric("f1_score", classificationmetric.f1_score)
                 mlflow.log_metric("precision", classificationmetric.precision_score)
                 mlflow.log_metric("recall_score", classificationmetric.recall_score)
-
-                mlflow.sklearn.log_model(best_model, name = "model")
 
         except Exception as e:
             raise NetworkSecurityException(e, sys)
@@ -58,10 +55,10 @@ class ModelTrainer:
     def train_model(self, X_train, y_train, x_test, y_test):
         try:
             models = {
-                "Random Forest": RandomForestClassifier(verbose=1),
+                "Random Forest": RandomForestClassifier(verbose=0),
                 "Decision Tree": DecisionTreeClassifier(),
-                "Gradient Boosting": GradientBoostingClassifier(verbose=1),
-                "Logistic Regression": LogisticRegression(verbose=1),
+                "Gradient Boosting": GradientBoostingClassifier(verbose=0),
+                "Logistic Regression": LogisticRegression(verbose=0),
                 "AdaBoost": AdaBoostClassifier(),
             }
 
