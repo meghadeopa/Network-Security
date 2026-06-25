@@ -3,6 +3,7 @@ import os
 import numpy as np
 import pandas as pd
 from sklearn.impute import KNNImputer
+from sklearn.preprocessing import RobustScaler
 from sklearn.pipeline import Pipeline
 
 from networksecurity.constants.training_pipeline import TARGET_COLUMN
@@ -53,7 +54,10 @@ class DataTransformation:
            logging.info(
                 f"Initialise KNNImputer with {DATA_TRANSFORMATION_IMPUTER_PARAMS}"
             )
-           processor:Pipeline=Pipeline([("imputer",imputer)])
+           scaler:RobustScaler=RobustScaler()
+           # Impute missing values first, then scale features. Both apply at train
+           # and inference time, so they belong in the saved preprocessing pipeline.
+           processor:Pipeline=Pipeline([("imputer",imputer),("scaler",scaler)])
            return processor
         except Exception as e:
             raise NetworkSecurityException(e,sys)
