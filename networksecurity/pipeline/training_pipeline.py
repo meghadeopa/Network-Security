@@ -9,6 +9,10 @@ from networksecurity.components.data_validation import DataValidation
 from networksecurity.components.data_transformation import DataTransformation
 from networksecurity.components.model_trainer import ModelTrainer
 
+from networksecurity.components.model_evaluation import ModelEvaluation
+from networksecurity.entity.config_entity import ModelEvaluationConfig
+from networksecurity.entity.artifact_entity import ModelEvaluationArtifact
+
 from networksecurity.entity.config_entity import(
     TrainingPipelineConfig,
     DataIngestionConfig,
@@ -74,6 +78,20 @@ class TrainingPipeline:
             return model_trainer_artifact
         except Exception as e:
             raise NetworkSecurityException(e, sys)
+        
+    def start_model_evaluation(self, data_validation_artifact, model_trainer_artifact):
+        try:
+            model_eval_config = ModelEvaluationConfig(training_pipeline_config=self.training_pipeline_config)
+            model_evaluation = ModelEvaluation(
+                model_eval_config=model_eval_config,
+                data_validation_artifact=data_validation_artifact,
+                model_trainer_artifact=model_trainer_artifact,
+            )
+            model_evaluation_artifact = model_evaluation.initiate_model_evaluation()
+            logging.info(f"Model evaluation completed: accepted={model_evaluation_artifact.is_model_accepted}")
+            return model_evaluation_artifact
+        except Exception as e:
+            raise NetworkSecurityException(e, sys)
 
     def run_pipeline(self):
         try:
@@ -82,10 +100,13 @@ class TrainingPipeline:
             data_transformation_artifact = self.start_data_transformation(data_validation_artifact=data_validation_artifact)
             model_trainer_artifact = self.start_model_trainer(data_transformation_artifact=data_transformation_artifact)
 
-            # S3 sync is not configured yet (no AWS). Add S3Sync + AWS creds later
-            # and call sync methods here to push artifacts/models to the cloud.
+            model_evaluation_artifact = self.start_model_evaluation(
+                data_validation_artifact=data_validation_artifact,
+                model_trainer_artifact=model_trainer_artifact,
+            )
+
             logging.info("S3 sync skipped - AWS not configured")
 
-            return model_trainer_artifact
+            return model_evaluation_artifact
         except Exception as e:
             raise NetworkSecurityException(e, sys)

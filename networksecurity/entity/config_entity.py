@@ -72,3 +72,13 @@ class ModelTrainerConfig:
         )
         self.expected_accuracy: float = training_pipeline.MODEL_TRAINER_EXPECTED_SCORE
         self.overfitting_underfitting_threshold = training_pipeline.MODEL_TRAINER_OVER_FIITING_UNDER_FITTING_THRESHOLD
+
+class ModelEvaluationConfig:
+    def __init__(self,training_pipeline_config:TrainingPipelineConfig):
+        self.model_evaluation_dir: str = os.path.join(
+            training_pipeline_config.artifact_dir, "model_evaluation"
+        )
+        # the currently-deployed "best" model lives here (saved by the trainer)
+        self.best_model_path: str = os.path.join("final_model", "model.pkl")
+        # a new model must beat the current best by at least this much to be accepted
+        self.change_threshold: float = 0.01
