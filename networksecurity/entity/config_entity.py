@@ -82,3 +82,10 @@ class ModelEvaluationConfig:
         self.best_model_path: str = os.path.join("final_model", "model.pkl")
         # a new model must beat the current best by at least this much to be accepted
         self.change_threshold: float = 0.01
+
+class ModelPusherConfig:
+    def __init__(self,training_pipeline_config:TrainingPipelineConfig):
+        # where the promoted/serving model is kept locally
+        self.model_dir: str = training_pipeline_config.model_dir  # "final_model"
+        self.model_file_path: str = os.path.join(self.model_dir, training_pipeline.MODEL_FILE_NAME)
+        self.timestamp: str = training_pipeline_config.timestamp

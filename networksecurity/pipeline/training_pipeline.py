@@ -16,6 +16,10 @@ from networksecurity.components.model_evaluation import ModelEvaluation
 from networksecurity.entity.config_entity import ModelEvaluationConfig
 from networksecurity.entity.artifact_entity import ModelEvaluationArtifact
 
+from networksecurity.components.model_pusher import ModelPusher
+from networksecurity.entity.config_entity import ModelPusherConfig
+from networksecurity.entity.artifact_entity import ModelPusherArtifact
+
 from networksecurity.entity.config_entity import(
     TrainingPipelineConfig,
     DataIngestionConfig,
@@ -95,6 +99,19 @@ class TrainingPipeline:
             return model_evaluation_artifact
         except Exception as e:
             raise NetworkSecurityException(e, sys)
+        
+    def start_model_pusher(self, model_evaluation_artifact):
+        try:
+            model_pusher_config = ModelPusherConfig(training_pipeline_config=self.training_pipeline_config)
+            model_pusher = ModelPusher(
+                model_pusher_config=model_pusher_config,
+                model_evaluation_artifact=model_evaluation_artifact,
+            )
+            model_pusher_artifact = model_pusher.initiate_model_pusher()
+            logging.info(f"Model pusher completed: {model_pusher_artifact}")
+            return model_pusher_artifact
+        except Exception as e:
+            raise NetworkSecurityException(e, sys)
 
     def run_pipeline(self):
         try:
@@ -108,10 +125,13 @@ class TrainingPipeline:
                 model_trainer_artifact=model_trainer_artifact,
             )
 
+            # archive all artifacts every run (for traceability)
             self.sync_artifact_dir_to_s3()
-            self.sync_saved_model_dir_to_s3()
 
-            return model_evaluation_artifact
+            # promote + sync the model ONLY if evaluation accepted it
+            model_pusher_artifact = self.start_model_pusher(model_evaluation_artifact=model_evaluation_artifact)
+
+            return model_pusher_artifact
         except Exception as e:
             raise NetworkSecurityException(e, sys)
         
