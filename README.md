@@ -1,203 +1,162 @@
 # 🔐 Network Security — Phishing Website Detection
 
-![Python](https://img.shields.io/badge/Python-3.10-blue)
-![FastAPI](https://img.shields.io/badge/FastAPI-0.100-green)
-![MongoDB](https://img.shields.io/badge/MongoDB-Atlas-brightgreen)
-![Docker](https://img.shields.io/badge/Docker-Enabled-blue)
-![AWS](https://img.shields.io/badge/AWS-EC2-orange)
-![CI/CD](https://img.shields.io/badge/CI%2FCD-GitHub%20Actions-black)
-
-## 📌 Project Overview
-
-An end-to-end **MLOps project** that detects whether a website is a **phishing website** (fake/dangerous) or a **legitimate website** using Machine Learning.
-
-The system is not just a notebook, it is a complete **production-grade application** with:
-- Automated data pipeline from MongoDB
-- Data validation with drift detection
-- Model training with automatic best model selection
-- REST API built with FastAPI
-- Docker containerisation
-- Deployed on AWS EC2 via GitHub Actions CI/CD
-
----------------------------------------------------------------------------------------------------------------------------
-
-## 🏗️ Project Architecture
-
-MongoDB Atlas
-↓
-Data Ingestion → Data Validation → Data Transformation
-↓                ↓                   ↓
-Fetch Data      Schema Check        KNN Imputer
-Split Train/    Drift Detection     SMOTETomek
-Test            Column Check        RobustScaler
-Save preprocessing.pkl
-↓
-Model Trainer
-(Best Model Selection)
-↓
-Model Evaluation
-(Accuracy Threshold Check)
-↓
-Model Pusher → AWS S3
-↓
-FastAPI Application
-(Deployed on AWS EC2)
-
------------------------------------------------------------------------------------------------------------------------------
-
-## 📊 Dataset
-
-| Property | Details |
-
-| Source | UCI ML Repository — Phishing Websites |
-| Total Records | 11,055 websites |
-| Total Features | 30 input features + 1 target |
-| Target | Result: 1 = Phishing, -1 = Legitimate |
-| Phishing websites | 6,157 (55.7%) |
-| Legitimate websites | 4,898 (44.3%) |
-| Missing Values | Zero |
-
-### Key Features Used
-- `having_IP_Address` — IP instead of domain name
-- `URL_Length` — suspicious URL length
-- `SSLfinal_State` — valid SSL certificate check
-- `age_of_domain` — how old the domain is
-- `Page_Rank` — Google page rank
-- `DNSRecord` — DNS record existence
-- And 24 more URL and page-based features
-
-----------------------------------------------------------------------------------------------------------------------------
-
-## 🧩 Pipeline Components
-
-### 1. Data Ingestion
-- Connects to MongoDB Atlas database
-- Fetches all website records
-- Exports to Feature Store as CSV with timestamp
-- Splits into train.csv (80%) and test.csv (20%)
-
-### 2. Data Validation
-- Validates number of columns matches schema
-- Checks all numerical columns exist
-- Detects data drift using statistical tests
-- Generates drift report YAML file
-
-### 3. Data Transformation
-- Handles missing values using **KNN Imputer** (K=3)
-- Handles class imbalance using **SMOTETomek**
-- Scales features using **RobustScaler**
-- Saves preprocessing pipeline as preprocessing.pkl
-- Outputs train.npy and test.npy arrays
-
-### 4. Model Trainer
-- Loads transformed numpy arrays
-- Trains multiple ML models via Model Factory
-- Selects best model above accuracy threshold
-- Saves model.pkl with embedded preprocessor
-
-### 5. Model Evaluation
-- Compares new model vs existing production model
-- Accepts model only if accuracy improves
-- Prevents model degradation in production
-
-### 6. Model Pusher
-- Pushes accepted model to AWS S3 bucket
-- Updates final_model directory
-- Makes model available for API serving
-
-----------------------------------------------------------------------------------------------------------------------------
-
-## 🛠️ Tech Stack
-
-| Category | Technology |
-|---|---|
-| Language | Python 3.10 |
-| Web Framework | FastAPI |
-| Database | MongoDB Atlas |
-| ML Libraries | Scikit-learn, XGBoost, Imbalanced-learn |
-| Data Processing | Pandas, NumPy |
-| Containerisation | Docker |
-| Cloud | AWS EC2, AWS ECR, AWS S3 |
-| CI/CD | GitHub Actions |
-| Logging | Python logging module |
-| Config Management | Python dataclasses |
-
------------------------------------------------------------------------------------------------------------------------------
-
-## 📁 Project Structure
-
-Network-Security/
-├── .github/
-│   └── workflows/
-│       └── main.yml          # GitHub Actions CI/CD
-├── networksecurity/
-│   ├── components/
-│   │   ├── data_ingestion.py
-│   │   ├── data_validation.py
-│   │   ├── data_transformation.py
-│   │   ├── model_trainer.py
-│   │   ├── model_evaluation.py
-│   │   └── model_pusher.py
-│   ├── entity/
-│   │   ├── config_entity.py
-│   │   └── artifact_entity.py
-│   ├── exception/
-│   │   └── exception.py
-│   ├── logging/
-│   │   └── logger.py
-│   ├── pipeline/
-│   │   └── training_pipeline.py
-│   └── utils/
-│       └── main_utils.py
-├── data_schema/
-│   └── schema.yaml
-├── final_model/
-│   ├── model.pkl
-│   └── preprocessor.pkl
-├── app.py                    # FastAPI application
-├── main.py                   # Training pipeline runner
-├── push_data.py              # MongoDB data pusher
-├── Dockerfile
-├── requirements.txt
-├── setup.py
-└── README.md
-
---------------------------------------------------------------------------------------------------------------------------
-
-## 📈 Model Performance
-
-| Metric | Value |
-|---|---|
-| Algorithm | [Add after training completes] |
-| Training Accuracy | [Add after training completes] |
-| Test Accuracy | [Add after training completes] |
-| F1 Score | [Add after training completes] |
-
-----------------------------------------------------------------------------------------------------------------------------
-
-## 🎯 Key Learnings
-
-- Building modular, production-grade ML pipelines
-- ETL pipeline from CSV to MongoDB to Feature Store
-- Data validation and drift detection with Evidently
-- Handling class imbalance with SMOTETomek
-- FastAPI for ML model serving
-- Docker containerisation of ML applications
-- AWS ECR + EC2 deployment
-- GitHub Actions for CI/CD automation
-
------------------------------------------------------------------------------------------------------------------------------
-
-## 👩‍💻 Author
-
-**Megha Deopa**
-MBA in Artificial Intelligence & Machine Learning
-
-[![LinkedIn](https://img.shields.io/badge/LinkedIn-Connect-blue)](https://www.linkedin.com/in/megha-deopa1505/)
-[![GitHub](https://img.shields.io/badge/GitHub-Follow-black)](https://github.com/meghadeopa)
+An end-to-end MLOps pipeline that classifies websites as **phishing** or **legitimate**
+from 30 URL- and page-based features. The project is structured as a modular,
+stage-based pipeline with experiment tracking, a model-promotion gate, a REST API
+for serving, and artifact/model syncing to AWS S3.
 
 ---
 
-## 📄 License
+## Project Overview
 
-This project is for educational purposes.
+This is not a single notebook — it is a modular pipeline where each stage produces a
+typed *artifact* that feeds the next stage. The pipeline covers data ingestion from
+MongoDB, validation with drift detection, preprocessing, model training with
+experiment tracking, an evaluation gate that decides whether a new model is good
+enough to promote, and conditional pushing of the promoted model to a serving
+location and S3.
+
+---
+
+## Architecture
+
+MongoDB Atlas
+
+│
+
+▼
+
+Data Ingestion ──► Data Validation ──► Data Transformation ──► Model Trainer
+
+(fetch + split)   (schema +           (KNN imputer +          (GridSearchCV over
+
+drift detection)     RobustScaler)           multiple models,
+
+MLflow tracking)
+
+│
+
+▼
+
+Model Evaluation
+
+(compare vs current
+
+best; accept/reject)
+
+│
+
+▼
+
+Model Pusher
+
+(promote + S3 sync ONLY
+
+if model was accepted)
+All artifacts and the promoted model are synced to AWS S3 each run.
+
+A FastAPI app exposes /train and /predict endpoints for serving.
+
+---
+
+## Dataset
+
+| Property | Details |
+|---|---|
+| Source | UCI ML Repository — Phishing Websites |
+| Records | ~11,000 websites |
+| Features | 30 URL/page-based features + 1 target |
+| Target | `Result` (phishing vs legitimate) |
+
+Representative features: `having_IP_Address`, `URL_Length`, `SSLfinal_State`,
+`age_of_domain`, `Page_Rank`, `DNSRecord`, and others.
+
+---
+
+## Pipeline Components
+
+**1. Data Ingestion** — Connects to MongoDB Atlas, pulls the collection into a
+DataFrame, writes a timestamped feature-store CSV, and splits into train/test.
+
+**2. Data Validation** — Checks the column count against a schema and runs a
+per-feature Kolmogorov–Smirnov test to detect distribution drift between train and
+test. Uses a drift *tolerance* (fails only if the share of drifted features exceeds a
+threshold) and writes a drift report.
+
+**3. Data Transformation** — Builds an sklearn `Pipeline` with a `KNNImputer` followed
+by a `RobustScaler`, fits it on train only, transforms both sets, and saves the fitted
+preprocessor for consistent train/serve transformation.
+
+**4. Model Trainer** — Runs `GridSearchCV` across several classifiers (Random Forest,
+Decision Tree, Gradient Boosting, Logistic Regression, AdaBoost), selects the best by
+F1 score, and logs parameters and metrics to **MLflow on DagsHub**. The fitted model
+is bundled with its preprocessor in a `NetworkModel` wrapper for inference.
+
+**5. Model Evaluation** — Compares the newly trained model's test F1 against the
+current best model in `final_model/`. Accepts the new model only if it improves on the
+current best by a configurable threshold; on the first run (no incumbent), it accepts
+by default. Writes an evaluation report.
+
+**6. Model Pusher** — Acts on the evaluation decision: if the model was **accepted**,
+it promotes the model to the serving location (`final_model/`) and syncs it to S3. If
+**rejected**, it does nothing and the current production model is retained.
+
+---
+
+## Serving (FastAPI)
+
+`app.py` exposes:
+- `GET /train` — runs the full training pipeline.
+- `POST /predict` — accepts a CSV upload, returns predictions rendered as an HTML table.
+
+---
+
+## Tech Stack
+
+| Category | Technology |
+|---|---|
+| Language | Python |
+| Web framework | FastAPI |
+| Database | MongoDB Atlas |
+| ML | scikit-learn |
+| Experiment tracking | MLflow on DagsHub |
+| Cloud storage | AWS S3 |
+| Config management | Python dataclasses |
+
+---
+
+## How to Run
+
+```bash
+# install
+pip install -r requirements.txt
+
+# set environment variables in a .env file:
+#   MONGO_DB_URL, MLFLOW_TRACKING_URI, MLFLOW_TRACKING_USERNAME, MLFLOW_TRACKING_PASSWORD
+
+# run the full pipeline
+python main.py
+
+# or serve the API
+python app.py   # then open http://localhost:8000/docs
+```
+
+---
+
+## Model Performance
+
+| Metric | Value |
+|---|---|
+| Best model | Random Forest |
+| Test F1 | ~0.97 |
+| Test precision | ~0.97 |
+| Test recall | ~0.98 |
+
+(Metrics are logged per run to MLflow on DagsHub.)
+
+
+---
+
+## Author
+
+Megha Deopa
