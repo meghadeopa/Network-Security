@@ -1,9 +1,10 @@
 # 🔐 Network Security — Phishing Website Detection
 
 An end-to-end MLOps pipeline that classifies websites as **phishing** or **legitimate**
-from 30 URL- and page-based features. The project is structured as a modular,
-stage-based pipeline with experiment tracking, a model-promotion gate, a REST API
-for serving, and artifact/model syncing to AWS S3.
+from 30 URL- and page-based features. The project covers the full lifecycle: a modular,
+stage-based training pipeline with experiment tracking and a model-promotion gate, a
+REST API for serving, artifact/model syncing to AWS S3, and **automated CI/CD
+deployment to AWS EC2 via Docker, ECR, and GitHub Actions**.
 
 ---
 
@@ -14,48 +15,52 @@ typed *artifact* that feeds the next stage. The pipeline covers data ingestion f
 MongoDB, validation with drift detection, preprocessing, model training with
 experiment tracking, an evaluation gate that decides whether a new model is good
 enough to promote, and conditional pushing of the promoted model to a serving
-location and S3.
+location and S3. Every push to `main` triggers a CI/CD pipeline that builds a Docker
+image, pushes it to Amazon ECR, and deploys it to an EC2 instance where the API is
+served.
 
 ---
 
 ## Architecture
 
 MongoDB Atlas
-
 │
-
 ▼
-
 Data Ingestion ──► Data Validation ──► Data Transformation ──► Model Trainer
-
 (fetch + split)   (schema +           (KNN imputer +          (GridSearchCV over
-
 drift detection)     RobustScaler)           multiple models,
-
 MLflow tracking)
-
 │
-
 ▼
-
 Model Evaluation
-
 (compare vs current
-
 best; accept/reject)
-
 │
-
 ▼
-
 Model Pusher
-
 (promote + S3 sync ONLY
-
 if model was accepted)
 All artifacts and the promoted model are synced to AWS S3 each run.
-
 A FastAPI app exposes /train and /predict endpoints for serving.
+
+### Deployment Pipeline (CI/CD)
+
+git push to main
+│
+▼
+GitHub Actions
+│
+├─► Continuous Integration  — lint & test checks
+│
+├─► Continuous Delivery     — build Docker image ► push to Amazon ECR
+│
+└─► Continuous Deployment   — self-hosted runner on EC2 pulls the image,
+stops the previous container, and starts the
+new one (FastAPI served on port 8080)
+
+Runtime configuration (database URI, MLflow credentials) is injected into the
+container as environment variables from GitHub Actions secrets — no credentials are
+baked into the image or the repository.
 
 ---
 
@@ -109,6 +114,9 @@ it promotes the model to the serving location (`final_model/`) and syncs it to S
 - `GET /train` — runs the full training pipeline.
 - `POST /predict` — accepts a CSV upload, returns predictions rendered as an HTML table.
 
+In deployment, the app runs inside a Docker container on AWS EC2, mapped to
+port 8080.
+
 ---
 
 ## Tech Stack
@@ -121,11 +129,15 @@ it promotes the model to the serving location (`final_model/`) and syncs it to S
 | ML | scikit-learn |
 | Experiment tracking | MLflow on DagsHub |
 | Cloud storage | AWS S3 |
+| Containerization | Docker |
+| Container registry | Amazon ECR |
+| Compute / hosting | AWS EC2 (self-hosted GitHub Actions runner) |
+| CI/CD | GitHub Actions |
 | Config management | Python dataclasses |
 
 ---
 
-## How to Run
+## How to Run Locally
 
 ```bash
 # install
@@ -138,8 +150,16 @@ pip install -r requirements.txt
 python main.py
 
 # or serve the API
-python app.py   # then open http://localhost:8000/docs
+python app.py   # then open http://localhost:8080/docs
 ```
+
+## How Deployment Works
+
+Every push to `main` (except README-only changes) triggers `.github/workflows/main.yml`:
+the workflow builds the Docker image, pushes it to Amazon ECR, and a self-hosted
+runner on the EC2 instance pulls the new image, replaces the running container, and
+serves the API on port 8080. AWS credentials and runtime secrets are stored as GitHub
+Actions secrets.
 
 ---
 
@@ -148,12 +168,32 @@ python app.py   # then open http://localhost:8000/docs
 | Metric | Value |
 |---|---|
 | Best model | Random Forest |
-| Test F1 | ~0.97 |
-| Test precision | ~0.97 |
-| Test recall | ~0.98 |
+| Test F1 | ~0.977 |
+| Test precision | ~0.971 |
+| Test recall | ~0.978 |
 
-(Metrics are logged per run to MLflow on DagsHub.)
+Recall is kept at or above precision by design: in phishing detection a missed
+phishing site (false negative) is more costly than a false alarm. Metrics are logged
+per run to MLflow on DagsHub.
 
+---
+
+## Design Decisions
+
+A few deliberate choices worth noting:
+- **F1 for model selection** — the task is binary classification, so models are ranked
+  by F1 rather than a regression metric.
+- **Drift tolerance over hard-fail** — on a random train/test split a few features
+  drift by chance, so validation fails only when the *share* of drifted features
+  exceeds a threshold, rather than on any single feature.
+- **Evaluation gate before promotion** — a newly trained model replaces the production
+  model only if it improves on it, preventing silent regression.
+- **MLflow logs metrics only** — model artifacts are stored locally and in S3 rather
+  than uploaded to the MLflow/DagsHub artifact store (which was slow for large models).
+- **Secrets injected at runtime** — the Docker image contains no credentials; all
+  runtime configuration is passed as environment variables from CI/CD secrets.
+- **Class-imbalance handling evaluated but not applied** — the dataset is
+  near-balanced, so SMOTE was deemed unnecessary.
 
 ---
 
